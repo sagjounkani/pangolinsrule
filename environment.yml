@@ -4,7 +4,5 @@ channels:
 dependencies:
   - python=3.6
   - pandas
-  - google-api-python-client
   - xlrd
-prefix: /Users/sagar/miniconda3/envs/pangolin
 
