@@ -1,40 +1,27 @@
 import urllib.request
+import urllib.parse
 from datetime import date, datetime
 import os
 
 from googleapiclient.discovery import build
 
 
-def runScript():
+def google_query(query, api_key, cse_id, **kwargs):
+    query_service = build("customsearch",
+                          "v1",
+                          developerKey=api_key
+                          )
+
+    query_results = query_service.cse().list(q=query,  # Query
+                                             cx=cse_id,  # CSE ID
+                                             **kwargs
+                                             ).execute()
+    return query_results['items']
+
+
+def runScript(options):
     api_key = "AIzaSyC82PPB7gNUXaoyZrf9000NTYFzoomSjC0"
     cse_id = "007736650077175064536:jukxmfl0vgf"
-
-    from optparse import OptionParser
-
-    parser = OptionParser()
-    parser.add_option("-a", "--animal", type="string", help="animal", dest="animal", default="pangolin")
-    parser.add_option("-f", "--dateFrom", type="string", help="date from", dest="dateFrom", default="20100101")
-    parser.add_option("-t", "--dateTo", type="string", help="date to", dest="dateTo", default="20201231")
-    parser.add_option("-s", "--searchTerms", type="string", help="search terms", dest="terms",
-                      default="seize|seizure|poach")
-    parser.add_option("-n", "--numresults", type="int", help="number of search results", dest="numOfSearchResults",
-                      default=10)
-    parser.add_option("-m", "--serialno", type="int", help="serial no of query", dest="sno",
-                      default=0)
-
-    options, arguments = parser.parse_args()
-
-    def google_query(query, api_key, cse_id, **kwargs):
-        query_service = build("customsearch",
-                              "v1",
-                              developerKey=api_key
-                              )
-
-        query_results = query_service.cse().list(q=query,  # Query
-                                                 cx=cse_id,  # CSE ID
-                                                 **kwargs
-                                                 ).execute()
-        return query_results['items']
 
     my_results_set = set()
     today = date.today().strftime("%Y%m%d")
@@ -58,7 +45,12 @@ def runScript():
                                       orTerms=f"{terms}|{animal}"
                                       )
             for result in my_results:
-                my_results_set.add((result['link'], result['title']))
+                iri = result['link']
+                split_url = list(urllib.parse.urlsplit(iri))
+                split_url[2] = urllib.parse.quote(split_url[2])  # the third component is the path of the URL/IRI
+                url = urllib.parse.urlunsplit(split_url)
+                my_results_set.add((url,
+                                    result['title']))
 
     for link, title in my_results_set:
         try:
@@ -69,7 +61,7 @@ def runScript():
             response = urllib.request.urlopen(req)
             webContent = response.read()
             os.makedirs(downloadPath, exist_ok=True)
-            f = open(f"{downloadPath}/{title}"+".html", 'wb')
+            f = open(f"{downloadPath}/{title}" + ".html", 'wb')
             f.write(webContent)
             f.close()
             print(f"Saved - {link} - {title}")
@@ -83,4 +75,19 @@ def runScript():
 
 
 if __name__ == "__main__":
-    runScript()
+    from optparse import OptionParser
+
+    parser = OptionParser()
+    parser.add_option("-a", "--animal", type="string", help="animal", dest="animal", default="pangolin")
+    parser.add_option("-f", "--dateFrom", type="string", help="date from", dest="dateFrom", default="20100101")
+    parser.add_option("-t", "--dateTo", type="string", help="date to", dest="dateTo", default="20201231")
+    parser.add_option("-s", "--searchTerms", type="string", help="search terms", dest="terms",
+                      default="seize|seizure|poach")
+    parser.add_option("-n", "--numresults", type="int", help="number of search results", dest="numOfSearchResults",
+                      default=10)
+    parser.add_option("-m", "--serialno", type="int", help="serial no of query", dest="sno",
+                      default=0)
+
+    options, arguments = parser.parse_args()
+
+    runScript(options)
